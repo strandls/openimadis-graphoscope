@@ -1,0 +1,113 @@
+#graphoscope {
+  width: 100%;
+  position: relative;
+}
+    
+#graphoscope-nav {
+  width: 242px;
+  height: 200px;
+  border: 2px solid rgb(85, 85, 85);
+  margin: 10px !important;
+  padding: 0px;
+  position: absolute !important;
+  right: 0;
+  bottom: 100px;
+  touch-action: none;
+  opacity: 0.95;
+  overflow: hidden;
+  display: inline-block;
+  background: rgb(0, 0, 0);
+}
+
+#graphoscope-toolbar {
+}
+
+#tools-panel {
+  width: 100%;
+  position: absolute;
+  top: 0;
+  z-index: 99999;
+  background-color: #333;
+  padding: 10px;
+  opacity: 0.7;
+  box-shadow: 200px 10px 85px -2px rgba(0,0,0,0.7);
+}
+
+#nav-toggle-button {
+  margin-left: 50px;
+  margin-right: 50px;
+}
+
+#draw-settings {
+  height: 100%;
+  width: 200px;
+  z-index: 1000;
+  position: absolute;
+  background-color: #333;
+  display: none;
+  padding-top: 80px;
+  padding-left: 20px;
+  box-shadow: 5px 200px 85px -2px rgba(0,0,0,0.7);
+}
+
+#line-width {
+  width: 100%;
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+#line-color {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+#red-btn {
+  background-color: red;
+}
+
+#orange-btn {
+  background-color: #ffa500;
+}
+
+#blue-btn {
+  background-color: blue;
+}
+
+#green-btn {
+  background-color: green;
+}
+
+#black-btn {
+  background-color: black;
+}
+
+#white-btn {
+  background-color: white;
+}
+
+#view-tools {
+  position: absolute;
+  bottom: 30px;
+  right: 30px;
+  z-index: 1000;
+}
+
+.toolbar-btn {
+  float: right; 
+}
+
+.btn-lg {
+  border-radius: 0px !important;
+}
+
+.draw-tools-item {
+  float: right;
+  clear:both;
+  margin: 10px;
+  font-size: 1.5em;
+  color: #aaa;
+}
+
+#view-mode {
+  display: none;
+}
