@@ -17,9 +17,9 @@ import com.strandgenomics.imaging.icore.IRecord;
 import com.strandgenomics.imaging.icore.IRecordObserver;
 
 
-public class CreateRecord implements IRecordObserver {
+public class RecordHolder implements IRecordObserver {
 	IRecord record  = null;
-	public  CreateRecord(String file) {
+	public  RecordHolder(String file) {
 		// TODO Auto-generated method stub
 		File f = new File(file);
 		RawExperiment rf = RawExperimentFactory.createExperiment(f, false);

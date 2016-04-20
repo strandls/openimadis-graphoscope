@@ -24,11 +24,11 @@ public class TilesCreator {
 	private static int MIN_ZOOM_LEVEL_FOR_PREFETCHING;
 	private static int DZI_TILE_SIZE = 256;
 	private static File root;
-	private static CreateRecord v;
+	private static RecordHolder v;
 	public static void main(String[] args) throws FormatException, IOException {
 		
 		//v = new CreateRecord("/home/ravikiran/FMG_344.tiff");
-		v = new CreateRecord("/home/ravikiran/curie_Data/tumour/Normal_005.tif");
+		v = new RecordHolder("/home/ravikiran/curie_Data/tumour/Normal_005.tif");
 		IRecord record = v.getRecord();
 		int[] channelNos = {0,1,2};
 		String dir = "/home/ravikiran/TestTile/2/";
