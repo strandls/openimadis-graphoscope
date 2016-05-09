@@ -29,7 +29,27 @@ public class RecordHolder implements IRecordObserver {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		record = (IRecord) rf.getRecords().toArray()[0];
+		int record_count = rf.getRecords().size();
+		System.out.println("length" + rf.getRecords().size());
+		
+		if( record_count > 0){
+			int height = 0, width = 0;
+			int index = 0;
+			//IRecord[] records = (IRecord[]) rf.getRecords().toArray();
+			for(int i = 0; i < record_count; i++){
+				IRecord record = (IRecord) rf.getRecords().toArray()[i];
+				if(height < record.getImageHeight() && width < record.getImageWidth()){
+					height = record.getImageHeight();
+					width = record.getImageWidth();
+					index = i;
+				}
+			}
+			record = (IRecord) rf.getRecords().toArray()[index];
+		}
+		else{
+			record = (IRecord) rf.getRecords().toArray()[0];
+		}
+		
 	}
 	public BufferedImage getImage(int x,int y, int w, int h,int[] channelNos){
 		

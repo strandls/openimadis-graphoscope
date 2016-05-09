@@ -9,7 +9,6 @@ import java.io.IOException;
 
 import javax.imageio.ImageIO;
 
-
 import com.strandgenomics.imaging.icore.IRecord;
 import com.strandgenomics.imaging.icore.util.Util;
 
@@ -25,13 +24,12 @@ public class TilesCreator {
 	private static int DZI_TILE_SIZE = 256;
 	private static File root;
 	private static RecordHolder v;
+	private static String img_format = "png";
 	public static void main(String[] args) throws FormatException, IOException {
 		
-		//v = new CreateRecord("/home/ravikiran/FMG_344.tiff");
-		v = new RecordHolder("/home/ravikiran/curie_Data/tumour/Normal_005.tif");
-		IRecord record = v.getRecord();
+		v = new RecordHolder("/home/ravikiran/4.jpg");
+		//v = new RecordHolder("/home/ravikiran/curie_Data/tumour/Normal_005.tif");
 		int[] channelNos = {0,1,2};
-		String dir = "/home/ravikiran/TestTile/2/";
 		int levels = (int) (Math.log(Math.max(v.getHeight(), v.getWidth()))/Math.log(2)) + 1;
 		System.out.println(""+ levels);
 		
@@ -48,25 +46,43 @@ public class TilesCreator {
 				subLevel.mkdir();
 			}
 		}
-		long start = System.currentTimeMillis();
+		String dirPath = null;
+		
 		long[] times = new long[4];
 		for(int i=0; i < MIN_ZOOM_LEVEL_FOR_PREFETCHING; i++){
 			int level = i;
 			int factor = (int) Math.pow(2,level);
 			int readSize = DZI_TILE_SIZE*(factor);
-			String dirPath = root.getAbsolutePath() + File.separator + (levels - level) + File.separator; 
+			dirPath = root.getAbsolutePath() + File.separator + (levels - level) + File.separator; 
 			System.out.println(dirPath);
 			long start0 = System.currentTimeMillis();
 			generateTiles(level, readSize, channelNos, dirPath);
 			times[i] = System.currentTimeMillis() - start0;
+			System.out.println("time" + times[i] );
+			break;
 		}  
-		doTiling(channelNos);
-		System.out.println("time taken total = " + (System.currentTimeMillis() - start));
-		
-		/*for(int i = 0; i < 4; i++){
-			System.out.println("i " + i + "time "+ times[i]);
+		/*Stitcher s = new Stitcher(root.getAbsolutePath(),v.getWidth(), v.getHeight(), levels,img_format);
+		try {
+			s.createAllLevels();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}*/
-
+		/*long start0 = System.currentTimeMillis();
+		BufferedImage img1 = v.getImage(0, 0, 1024, 1024, channelNos);
+		long time = System.currentTimeMillis() - start0;
+		System.out.println("" + time);*/
+		//ImageIO.write(img1.getSubimage(0, 0, 1024, 1024), "png", new File("/home/ravikiran/1_a.png"));
+//		BufferedImage img2 = v.getImage(0, 0, 512, 512, channelNos);
+//		ImageIO.write(img2, "jpg", new File("/home/ravikiran/1_b.jpg"));
+//		BufferedImage img3 = v.getImage(0, 0, 256, 256 ,channelNos);
+//		ImageIO.write(img3, "jpg", new File("/home/ravikiran/1_c.jpg"));
+//		BufferedImage img4 = v.getImage(0, 0, 1024, 1024 ,channelNos);
+//		ImageIO.write(img4, "jpg", new File("/home/ravikiran/1_d.jpg"));
+//		ImageIO.write(img4.getSubimage(0, 0, 256, 256), "jpg", new File("/home/ravikiran/1_e.jpg"));
+		
+		
+		
 		
 	}
 	
@@ -181,7 +197,7 @@ public class TilesCreator {
 			int scaled_width = (int) Math.ceil((double)img.getWidth()/2);
 			BufferedImage scaled_img = getScaledInstance(img, scaled_width, scaled_height, true);
 			
-			ImageIO.write(scaled_img, "jpg", new File(root.getAbsolutePath() + File.separator + String.valueOf(levels-zoom) + File.separator + "0_0.jpg" ));
+			ImageIO.write(scaled_img, img_format, new File(root.getAbsolutePath() + File.separator + String.valueOf(levels-zoom) + File.separator + "0_0." + img_format ));
 			//writeImage(scaled_img, zoom);
 			img = scaled_img;
 			if(img.getHeight() == 1 && img.getWidth() == 1){
@@ -291,7 +307,7 @@ public class TilesCreator {
 				chunk = v.getImage(tileSize*j, tileSize*i, tileSize, tileSize,channels);
 				chunk = Util.resizeImage(chunk, tileSize/scale, tileSize/scale);
 				try {
-					ImageIO.write(chunk, "jpg", new File(dir  + j + "_" + i + ".jpeg"));
+					ImageIO.write(chunk, img_format, new File(dir  + j + "_" + i +  "." + img_format));
 					count++;
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
@@ -303,7 +319,7 @@ public class TilesCreator {
 				chunk = Util.resizeImage(chunk, tileSize/scale, y_end/scale);
 				//chunk = createResizedCopy(chunk, requiredWidth/columns, requiredHeight/rows, true);
 				try {
-					ImageIO.write(chunk, "jpg", new File(dir + j + "_" + rows + ".jpeg"));
+					ImageIO.write(chunk, "png", new File(dir + j + "_" + rows + "." + img_format));
 					count++;
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
@@ -318,7 +334,7 @@ public class TilesCreator {
 				chunk = Util.resizeImage(chunk, x_end/scale, tileSize/scale);
 				//chunk = createResizedCopy(chunk, requiredWidth/columns, requiredHeight/rows, true);
 				try {
-					ImageIO.write(chunk, "jpg", new File(dir + columns + "_" + i + ".jpeg"));
+					ImageIO.write(chunk, "png", new File(dir + columns + "_" + i + "." + img_format));
 					count++;
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
@@ -330,7 +346,7 @@ public class TilesCreator {
 				chunk = Util.resizeImage(chunk, x_end/scale, y_end/scale);
 				//chunk = createResizedCopy(chunk, requiredWidth/columns, requiredHeight/rows, true);
 				try {
-					ImageIO.write(chunk, "jpg", new File(dir + columns + "_" + rows + ".jpeg"));
+					ImageIO.write(chunk, "png", new File(dir + columns + "_" + rows + "." + img_format));
 					count++;
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
