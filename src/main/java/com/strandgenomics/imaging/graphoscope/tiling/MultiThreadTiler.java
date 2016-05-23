@@ -20,7 +20,7 @@ public class MultiThreadTiler {
 	public MultiThreadTiler(long recordId,ImageSpaceSystem iSpace,File storageroot,RecordParameters recordParams){
 		cores = Runtime.getRuntime().availableProcessors();
 		readers = Constants.getBufferedReaderStackSize();
-		readers = 4;
+		//readers = 4;
 		threads = Math.min(readers, 2*cores);
 		this.recordId = recordId;
 		this.ispace = iSpace;
@@ -84,12 +84,12 @@ public class MultiThreadTiler {
 			};
 		}
 		//create all the lower levels from highest level
-		/*Stitcher s = new Stitcher(root,record.getImageWidth(), record.getImageHeight(), levels,img_format);
+		Stitcher s = new Stitcher(root,record.getImageWidth(), record.getImageHeight(), levels,img_format);
 		try {
 			s.createAllLevels();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}*/
+		}
 	}
 }
