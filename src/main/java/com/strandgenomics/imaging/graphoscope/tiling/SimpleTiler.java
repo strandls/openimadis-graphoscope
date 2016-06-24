@@ -3,27 +3,37 @@ package com.strandgenomics.imaging.graphoscope.tiling;
 
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 
 import javax.imageio.ImageIO;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
 
 import com.strandgenomics.imaging.iclient.ImageSpaceSystem;
 import com.strandgenomics.imaging.iclient.Record;
-import com.strandgenomics.imaging.icore.util.Util;
-import com.strandgenomics.imaging.tileviewer.Helper;
 
 public class SimpleTiler {
 	
 	private final int DZI_TILE_SIZE = 256;
 	private  String img_format = "png";
-	private  File root;
+	private  File storageRoot;
 	
 	private long recordId;
 	private ImageSpaceSystem ispace;
 	private RecordParameters recordParams;
 	public SimpleTiler(File storage,long recordId, ImageSpaceSystem iSpace, RecordParameters params){
-		this.root = storage;
+		this.storageRoot = storage;
 		this.recordId = recordId;
 		this.img_format = "png";
 		this.ispace = iSpace;
@@ -38,22 +48,14 @@ public class SimpleTiler {
 			e.printStackTrace();
 		}*/
 		System.out.println("doTiling enter simple tiling.........................................");
-		System.out.println(recordParams.toString());
 		Record record = ispace.findRecordForGUID(recordId);
-		File record_dir = new File(root, "" + recordId);
-		if(!record_dir.exists()){
-			record_dir.mkdir();
-		}
+		
+		
 		int height = (int) record.getImageHeight();
 		int width = (int) record.getImageWidth();
 		int levels = (int) (Math.log(Math.max(height, width))/Math.log(2)) + 1;
-		for(int i = 0; i <= levels; i++){
-			File subLevel = new File(record_dir,String.valueOf(i));
-			if(!subLevel.exists()){
-				subLevel.mkdir();
-			}
-		}
-		File level_dir = new File(record_dir.getAbsolutePath() + File.separator + String.valueOf(levels));
+		File recordFilesDir = new File(createDirectory(levels,width,height));
+		File level_dir = new File(recordFilesDir.getAbsolutePath() + File.separator + String.valueOf(levels));
 		if(!level_dir.exists()){
 			level_dir.mkdir();
 		}
@@ -128,7 +130,7 @@ public class SimpleTiler {
 				}
 			}
 		}
-		Stitcher s = new Stitcher(record_dir.getAbsolutePath(),record.getImageWidth(), record.getImageHeight(), levels,img_format);
+		Stitcher s = new Stitcher(recordFilesDir.getAbsolutePath(),record.getImageWidth(), record.getImageHeight(), levels,img_format);
 		try {
 			s.createAllLevels();
 		} catch (IOException e) {
@@ -138,7 +140,58 @@ public class SimpleTiler {
 		System.out.println("count" + count);
 		System.out.println("leaving/////////////////////////////////");
 	}
-	
+	private String createDirectory(int levels, int width,int height){
+		File record_dir = new File(storageRoot, "" + recordId);
+		if(!record_dir.exists()){
+			record_dir.mkdir();
+		}
+		File recordFiles_dir = new File(record_dir, recordId + "_files");
+		if(!recordFiles_dir.exists()){
+			recordFiles_dir.mkdir();
+		}
+		createXML(record_dir.getAbsolutePath(),width,height);
+		String root = recordFiles_dir.getAbsolutePath();
+		
+		for(int i = 0; i <= levels; i++){
+			File subLevel = new File(root,String.valueOf(i));
+			if(!subLevel.exists()){
+				subLevel.mkdir();
+			}
+		}
+		return root;
+	}
+	private void createXML(String dir,int width,int height){
+		InputStream is = this.getClass().getResourceAsStream("/dziformat.xml");
+		BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(is));
+		
+		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+
+	      try {
+	         // use the factory to create a documentbuilder
+	         DocumentBuilder builder = factory.newDocumentBuilder();
+
+	         // create a new document from input stream
+	         Document doc = builder.parse(is);
+	         NodeList nodeList = doc.getElementsByTagName("Image");
+	         //System.out.println(nodeList.item(0).getAttributes().getNamedItem("Format").getNodeValue());
+	         nodeList.item(0).getAttributes().getNamedItem("Format").setNodeValue("png");
+	         nodeList.item(0).getAttributes().getNamedItem("TileSize").setNodeValue("256");
+	         nodeList = doc.getElementsByTagName("Size");
+	         nodeList.item(0).getAttributes().getNamedItem("Height").setNodeValue(String.valueOf(height));
+	         nodeList.item(0).getAttributes().getNamedItem("Width").setNodeValue(String.valueOf(width));
+	         
+	        TransformerFactory transformerFactory = TransformerFactory.newInstance();
+	 		Transformer transformer = transformerFactory.newTransformer();
+	 		DOMSource source = new DOMSource(doc);
+	 		File dziDir = new File(dir);
+	 		File dziFile = new File(dziDir,recordId + ".dzi");
+	 		StreamResult result = new StreamResult(dziFile);
+	 		transformer.transform(source, result);
+	 		 
+	      } catch (Exception ex) {
+	         ex.printStackTrace();
+	      }
+	}
 
 }
 

@@ -11,11 +11,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.json.JSONObject;
 
-import com.strandgenomics.imaging.iclient.ImageSpaceObject;
-import com.strandgenomics.imaging.iclient.ImageSpaceSystem;
-import com.strandgenomics.imaging.tileviewer.Helper;
 
 
 @WebServlet("/ViewerServlet/*")

@@ -1,12 +1,20 @@
 package com.strandgenomics.imaging.graphoscope;
 
 import java.awt.Rectangle;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -16,10 +24,18 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.codehaus.jackson.map.ObjectMapper;
+import org.json.HTTP;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
+import com.google.gson.Gson;
+import com.strandgenomics.imaging.graphoscope.VisualObjectsTransformer.KineticTransformer;
+import com.strandgenomics.imaging.graphoscope.VisualObjectsTransformer.VisualObjectTransformer;
+import com.strandgenomics.imaging.graphoscope.VisualObjectsTransformer.VisualObjectsFactory;
 import com.strandgenomics.imaging.graphoscope.tiling.MultiThreadTiler;
 import com.strandgenomics.imaging.graphoscope.tiling.RecordParameters;
 import com.strandgenomics.imaging.graphoscope.tiling.SimpleTiler;
@@ -27,12 +43,15 @@ import com.strandgenomics.imaging.iclient.AuthenticationException;
 import com.strandgenomics.imaging.iclient.ImageSpaceObject;
 import com.strandgenomics.imaging.iclient.ImageSpaceSystem;
 import com.strandgenomics.imaging.iclient.Record;
+import com.strandgenomics.imaging.iclient.impl.ws.ispace.Area;
 import com.strandgenomics.imaging.icore.Channel;
-import com.strandgenomics.imaging.icore.Constants;
 import com.strandgenomics.imaging.icore.Dimension;
+import com.strandgenomics.imaging.icore.IVisualOverlay;
+import com.strandgenomics.imaging.icore.VODimension;
 import com.strandgenomics.imaging.icore.VisualContrast;
 import com.strandgenomics.imaging.icore.image.Histogram;
-import com.strandgenomics.imaging.tileviewer.Helper;
+import com.strandgenomics.imaging.icore.vo.VisualObject;
+import com.strandgenomics.imaging.icore.vo.VisualObjectType;
 
 
 public class Viewer {
@@ -229,21 +248,22 @@ public class Viewer {
 		int levels = (int) (Math.log(Math.max(height, width))/Math.log(2)) + 1;
 		int totalFiles = getFilesCount(width, height);
 		
-		File record_dir = new File(storageRoot,String.valueOf(recordid));
+		File recordDir = new File(storageRoot,String.valueOf(recordid));
+		File recordFilesDir = new File(recordDir,String.valueOf(recordid) + "_files");
 		int tiledCount = 0;
 		float progress = 0;
 		DecimalFormat df = new DecimalFormat("#.##");
-		if(record_dir.exists()){
+		if(recordDir.exists() && recordFilesDir.exists()){
 			for(int i = 0; i <= levels; i++){
-				File subLevel = new File(record_dir,String.valueOf(i));
+				File subLevel = new File(recordFilesDir,String.valueOf(i));
 				if(subLevel.exists()){
 					int count = subLevel.listFiles().length;
 					tiledCount += count;
-					System.out.println("count at " + i + " " + count  );
+					//System.out.println("count at " + i + " " + count  );
 				}
 			}
-			System.out.println("total"+ totalFiles);
-			System.out.println("total done"+ tiledCount);
+			//System.out.println("total"+ totalFiles);
+			//System.out.println("total done"+ tiledCount);
 			progress = (float) tiledCount/totalFiles;
 			progress *= 100;
 			
@@ -275,7 +295,7 @@ public class Viewer {
 			int tilesX = (int) Math.ceil((float) w/256);
 			int tilesY = (int) Math.ceil((float) h/256);
 			int tiles = tilesX * tilesY;
-			System.out.println("tiles at level : " + i + "-" +  tiles);
+			//System.out.println("tiles at level : " + i + "-" +  tiles);
 			count += tiles;
 			w =  (int) Math.ceil((float) w/2);
 			h =  (int) Math.ceil((float) h/2);
@@ -334,5 +354,256 @@ public class Viewer {
 			}
 		}
 		return contrastArray;
+	}
+	public void saveOverlays(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException, JSONException
+	{
+		long recordid = Long.parseLong(Helper.getRequiredParam(Helper.RECORD_ID, request));
+		//String name = request.getParameter("name");
+		String token = Helper.getRequiredParam(Helper.TOKEN, request);
+		String host = Helper.getRequiredParam(Helper.HOST, request);
+		int port = Integer.parseInt(Helper.getOptionalParam(Helper.PORT, request, "80"));
+		boolean scheme = Helper.getOptionalParam(Helper.SCHEME, request, "http").compareTo("https") == 0;
+		String overlayname = request.getParameter("overlayName");
+		System.out.println("createOVerlay " + recordid+token+host+port+scheme);
+		
+		ImageSpaceSystem iSpace = null;
+		iSpace = ImageSpaceObject.getImageSpace();
+		iSpace.setAccessKey(scheme, host, port, token);
+		Record r = iSpace.findRecordForGUID(recordid);
+		VODimension coordinate = new VODimension(0,0,0);
+		Area a = new Area(r.getImageHeight(), r.getImageWidth(), 0, 0);
+		
+		Collection<VisualObject> visualObjectsinArea = iSpace.findVisualObjects(recordid, coordinate, overlayname, a);
+		
+		if(visualObjectsinArea!=null){
+			iSpace.deleteVisualObjects(recordid, visualObjectsinArea, overlayname, coordinate);
+		}
+		
+		BufferedReader br = new BufferedReader(new InputStreamReader(request.getInputStream()));
+        /*String json = "";
+        if(br != null){
+            json = br.readLine();
+        }
+        System.out.println(json);*/
+        String visualObjectsString = "";
+        if(br != null){
+        	visualObjectsString = br.readLine();
+        }
+        System.out.println(visualObjectsString);
+        List<VisualObject> visualObjects = new ArrayList<VisualObject>();
+		
+		List<Map<String, Object>> overlays = new ObjectMapper().readValue(visualObjectsString, List.class);
+		System.out.println( overlays.size() + " is the size. ");
+		if(visualObjectsString!=null){
+			VisualObjectTransformer instance = VisualObjectsFactory.getVisualObjectTransformer("kinetic");
+			KineticTransformer t = new KineticTransformer();	
+            for (Map<String, Object> overlay : overlays)
+            { 
+            	VisualObjectType type = t.getType(overlay);
+            	if(type!=null){
+            		System.out.println(type.toString());
+                	VisualObject obj = instance.decode(overlay);
+                	//obj.setZoomLevel((Integer)overlay.get("zoom_level"));
+                	//System.out.println("zoom_level:"+obj.getZoomLevel());
+                	if(obj!=null){
+                		System.out.println("type:"+obj.getType());
+                        visualObjects.add(obj);
+                	}
+                	
+            	}
+            	
+            }
+		}
+		System.out.println(visualObjects.size() + "suze");
+		iSpace.addVisualObjects(recordid, visualObjects, overlayname, coordinate);
+		
+		System.out.println("DONE");
+		/*StringBuffer jb = new StringBuffer();
+		String line = null;
+		try {
+			BufferedReader reader = request.getReader();
+			while ((line = reader.readLine()) != null)
+				jb.append(line);
+		} catch (Exception e) { report an error }
+		System.out.println(jb.toString());
+		try {
+			JSONObject jsonObject = HTTP.toJSONObject(json);
+			System.out.println(jsonObject.toString());
+		} catch (Exception e) {
+			// crash and burn
+			//throw new IOException("Error parsing JSON request string");
+			e.printStackTrace();
+		}
+		*/
+        /*JSONObject jObj = new JSONObject(json); 
+        Iterator it = jObj.keys(); //gets all the keys
+
+        while(it.hasNext())
+        {
+            String key = (String) it.next(); // get key
+            Object o = jObj.get(key); // get value
+            System.out.println(key + " : " +  o); // print the key and value
+        }
+        File recordDir = new File(storageRoot,String.valueOf(recordid));
+        FileWriter file = new FileWriter(new File(recordDir,"overlay.json"));
+        file.write(jObj.toString());
+        file.close();*/
+	}
+	public void getVisualOverlayNames (HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException, JSONException{
+		long recordid = Long.parseLong(Helper.getRequiredParam(Helper.RECORD_ID, request));
+		
+		String token = Helper.getRequiredParam(Helper.TOKEN, request);
+		String host = Helper.getRequiredParam(Helper.HOST, request);
+		int port = Integer.parseInt(Helper.getOptionalParam(Helper.PORT, request, "80"));
+		boolean scheme = Helper.getOptionalParam(Helper.SCHEME, request, "http").compareTo("https") == 0;		
+		
+		ImageSpaceSystem iSpace = null;
+		iSpace = ImageSpaceObject.getImageSpace();
+		iSpace.setAccessKey(scheme, host, port, token);
+		
+		VODimension coordinate = new VODimension(0,0,0);
+		
+		Collection<IVisualOverlay> visualOverlays = iSpace.getVisualOverlays(recordid, coordinate);
+		
+		List<String> visualOverlaysNames = new ArrayList<String>();
+		
+		if(visualOverlays!=null){
+			for(IVisualOverlay ivo : visualOverlays){
+				visualOverlaysNames.add(ivo.getName());
+			}
+		}
+		
+        Gson gson = new Gson();
+		String json = gson.toJson(visualOverlaysNames);
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+        out.print(json);
+        out.flush();
+	}
+	/**
+	 * delete overlay in record
+	 * @param request
+	 * @param response
+	 * @throws ServletException
+	 * @throws IOException
+	 */
+	public void deleteOverlay (HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException{
+		System.out.println("deleteOverlay");
+		long recordid = Long.parseLong(Helper.getRequiredParam(Helper.RECORD_ID, request));
+		
+		String token = Helper.getRequiredParam(Helper.TOKEN, request);
+		String host = Helper.getRequiredParam(Helper.HOST, request);
+		int port = Integer.parseInt(Helper.getOptionalParam(Helper.PORT, request, "80"));
+		boolean scheme = Helper.getOptionalParam(Helper.SCHEME, request, "http").compareTo("https") == 0;
+		
+		String overlayname = request.getParameter("overlayName");
+
+		ImageSpaceSystem iSpace = null;
+		iSpace = ImageSpaceObject.getImageSpace();
+		iSpace.setAccessKey(scheme, host, port, token);
+		
+		iSpace.deleteVisualOverlays(recordid,0, overlayname);
+	}
+	public void getOverlays (HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException, JSONException{
+		long recordid = Long.parseLong(Helper.getRequiredParam(Helper.RECORD_ID, request));
+		String name = request.getParameter("name");
+		String token = Helper.getRequiredParam(Helper.TOKEN, request);
+		String host = Helper.getRequiredParam(Helper.HOST, request);
+		int port = Integer.parseInt(Helper.getOptionalParam(Helper.PORT, request, "80"));
+		boolean scheme = Helper.getOptionalParam(Helper.SCHEME, request, "http").compareTo("https") == 0;
+		System.out.println("getOVerlay " + recordid+token+host+port+scheme);
+		
+		String overlayname = request.getParameter("overlayName");
+
+		ImageSpaceSystem iSpace = null;
+		iSpace = ImageSpaceObject.getImageSpace();
+		iSpace.setAccessKey(scheme, host, port, token);
+		
+		VODimension coordinate = new VODimension(0,0,0);
+		Record r = iSpace.findRecordForGUID(recordid);
+		Area a = new Area(r.getImageHeight(), r.getImageWidth(), 0, 0);
+		
+		
+		Collection<VisualObject> visualObjects = iSpace.findVisualObjects(recordid, coordinate, overlayname, a);
+		
+		List<Map<String, Object>> ret = new ArrayList<Map<String, Object>>();
+		
+        if (visualObjects != null) {
+        	VisualObjectTransformer instance = VisualObjectsFactory.getVisualObjectTransformer("kinetic");
+            for (VisualObject vo : visualObjects){
+            	Map<String, Object> DataObject = (Map<String, Object>)instance.encode(vo);
+            	//DataObject.put("zoom_level", vo.getZoomLevel());
+            	ret.add(DataObject);
+            }
+        }
+        
+       // System.out.println("No of object="+visualObjects.size());
+        
+        Gson gson = new Gson();
+		String json = gson.toJson(ret);
+		System.out.println(json);
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+        out.print(json);
+        out.flush();
+	}
+	public void loadOverlays(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException, JSONException
+	{
+		long recordid = Long.parseLong(Helper.getRequiredParam(Helper.RECORD_ID, request));
+		String name = request.getParameter("name");
+		String token = Helper.getRequiredParam(Helper.TOKEN, request);
+		String host = Helper.getRequiredParam(Helper.HOST, request);
+		int port = Integer.parseInt(Helper.getOptionalParam(Helper.PORT, request, "80"));
+		boolean scheme = Helper.getOptionalParam(Helper.SCHEME, request, "http").compareTo("https") == 0;
+		System.out.println("getOVerlay " + recordid+token+host+port+scheme);
+		
+		File recordDir = new File(storageRoot,String.valueOf(recordid));
+		File overlayJSON = new File(recordDir, name);
+		JSONParser parser = new JSONParser();
+		org.json.simple.JSONObject jsonObject = null;
+		try {
+
+			Object obj = parser.parse(new FileReader(overlayJSON));
+
+			jsonObject = (org.json.simple.JSONObject) obj;
+
+			String type = (String) jsonObject.get("type");
+			System.out.println(type);
+
+			
+
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		
+		response.setContentType("application/json");
+		PrintWriter out = response.getWriter();
+		out.println(jsonObject.toString());
+		out.close();
+	}
+	public void createOverlay (HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException{
+		System.out.println("createOverlay");
+		long recordid = Long.parseLong(Helper.getRequiredParam(Helper.RECORD_ID, request));
+		
+		String token = Helper.getRequiredParam(Helper.TOKEN, request);
+		String host = Helper.getRequiredParam(Helper.HOST, request);
+		int port = Integer.parseInt(Helper.getOptionalParam(Helper.PORT, request, "80"));
+		boolean scheme = Helper.getOptionalParam(Helper.SCHEME, request, "http").compareTo("https") == 0;
+		
+		String overlayname = request.getParameter("overlayName");
+
+		ImageSpaceSystem iSpace = null;
+		iSpace = ImageSpaceObject.getImageSpace();
+		iSpace.setAccessKey(scheme, host, port, token);
+		
+		iSpace.createVisualOverlays(recordid,0, overlayname);
+		response.setContentType("text/plain");
+		PrintWriter out = response.getWriter();
+		out.println("success");
+		out.close();
 	}
 }

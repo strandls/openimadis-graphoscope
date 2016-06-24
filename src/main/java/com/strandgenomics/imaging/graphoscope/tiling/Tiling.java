@@ -1,7 +1,6 @@
 package com.strandgenomics.imaging.graphoscope.tiling;
 
 
-import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -10,7 +9,6 @@ import javax.imageio.ImageIO;
 
 import com.strandgenomics.imaging.iclient.ImageSpaceSystem;
 import com.strandgenomics.imaging.iclient.Record;
-import com.strandgenomics.imaging.tileviewer.Helper;
 
 public class Tiling {
 	
